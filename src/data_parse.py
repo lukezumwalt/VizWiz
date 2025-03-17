@@ -9,10 +9,16 @@ Lukas Zumwalt
 '''
 
 import json
+from skimage import io
+import matplotlib.pyplot as plt
 # import numpy as np
 
 # Directory for all images
 IMG_DIR = '../data/images/'
+
+TRAIN_IMG_DIR = IMG_DIR + 'train/'
+VAL_IMG_DIR = IMG_DIR + 'val/'
+TEST_IMG_DIR = IMG_DIR + 'test/'
 
 # Directory for annotation files
 ANN_DIR = '../data/annotations/'
@@ -20,6 +26,14 @@ ANN_DIR = '../data/annotations/'
 TRAIN_ANNOTATION_PATH = f'{ANN_DIR}train.json'
 VAL_ANNOTATION_PATH = f'{ANN_DIR}val.json'
 TEST_ANNOTATION_PATH = f'{ANN_DIR}test.json'
+
+# Plot image from the image url
+def visualize_image(image_path):
+    image = io.imread(image_path)
+    print(image_path)
+    plt.imshow(image)
+    plt.axis("off")
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -47,8 +61,8 @@ if __name__ == '__main__':
 
     # Unpack data: image
     image_name = vq['image']
-    image_url = IMG_DIR + image_name
-    print('Image URL:', image_url)
+    image_path = TRAIN_IMG_DIR + image_name
+    print('Image URL:', image_path)
 
     # Unpack data: question
     question = vq['question']
@@ -60,3 +74,5 @@ if __name__ == '__main__':
     print('Question:', question)
     print('Answer index 0:', answers[0])
     print('Answerability label:', label)
+
+    visualize_image(image_path)
