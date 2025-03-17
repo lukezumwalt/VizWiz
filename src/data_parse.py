@@ -12,10 +12,10 @@ import json
 # import numpy as np
 
 # Directory for all images
-IMG_DIR = '../../data/images/'
+IMG_DIR = '../data/images/'
 
 # Directory for annotation files
-ANN_DIR = '../../data/annotations/'
+ANN_DIR = '../data/annotations/'
 
 TRAIN_ANNOTATION_PATH = f'{ANN_DIR}train.json'
 VAL_ANNOTATION_PATH = f'{ANN_DIR}val.json'
