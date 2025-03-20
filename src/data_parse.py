@@ -34,12 +34,25 @@ class DataStruct():
     for respective data in accessible member form.
     '''
 
-    def __init__(self, images, annotations, txform=None):
-        self.txform = txform
+    def __init__(self,
+                 images,
+                 annotations,
+                 subset=0,
+                 txform=None,
+                 tokenizer=None,
+                 token_max_len=32):
+
         self.image_path = images
         self.annotation_path = annotations
+        self.txform = txform
+        self.tokenizer = tokenizer
+        self.token_max_len = token_max_len  # max length limit for tokens
+
+        # Load annotations and filter for a subset if provided
         with open(self.annotation_path, 'r', encoding='utf-8') as fn:
             self.annotations = json.load(fn)
+        if subset != 0:
+            self.subset = self.annotations[:subset]
 
     def __len__(self):
         return len(self.image_path)
@@ -47,12 +60,29 @@ class DataStruct():
     def __getitem__(self,idx):
         image = self.image_path[idx]
         annotation = self.annotation_path[idx]
+        question = annotation['question']
+        labels = annotation['answers']
 
         if self.txform:
             image = self.txform(image)
 
+        # Tokenize text if tokenizer is provided
+        if self.tokenizer:
+            encoding = self.tokenizer(
+                question,
+                padding='max_length',
+                truncation=True,
+                max_length=self.token_max_len,
+                return_tensors='pt'
+            )
+            input_ids = encoding['input_ids'].squeeze(0)      # shape: [max_length]
+            attention_mask = encoding['attention_mask'].squeeze(0)  # shape: [max_length]
+        else:
+            input_ids = None
+            attention_mask = None
+
         # Tuple return
-        return image, annotation
+        return image, labels, input_ids, attention_mask
 
     def show(self, idx, rich=False):
         '''
