@@ -7,6 +7,7 @@ provided for the VizWiz VQA data set.
 3/19/25
 Lukas Zumwalt
 '''
+import torch
 from torch import nn
 from transformers import BertModel
 
@@ -62,3 +63,38 @@ class TextEncoder(nn.Module):
         cls_hidden = outputs.last_hidden_state[:, 0, :]  # shape: (batch_size, hidden_size)
         embeddings = self.fc(cls_hidden)                # shape: (batch_size, embed_dim)
         return embeddings
+
+class TransformerFusion(nn.Module):
+    """
+    A small transformer that fuses image and text embeddings.
+    We treat each embedding as a 'token' or we can expand the text tokens further.
+    For simplicity, we'll consider a single token for image, single token for text.
+    """
+    def __init__(self, embed_dim=256, num_heads=4, num_layers=2, ff_dim=512):
+        super().__init__()
+
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=embed_dim, 
+            nhead=num_heads, 
+            dim_feedforward=ff_dim,
+            batch_first=True
+        )
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+    def forward(self, img_embeds, txt_embeds):
+        """
+        img_embeds: (batch_size, embed_dim)
+        txt_embeds: (batch_size, embed_dim)
+        
+        We can stack them as two tokens per sample:
+           tokens = torch.stack([img_embeds, txt_embeds], dim=1)
+        shape: (batch_size, 2, embed_dim)
+        Then run them through the TransformerEncoder.
+        """
+        tokens = torch.stack([img_embeds, txt_embeds], dim=1)  # (batch_size, 2, embed_dim)
+        fused = self.transformer_encoder(tokens)               # (batch_size, 2, embed_dim)
+
+        # We might pool them or just take the first token
+        # as the fused representation
+        fused_rep = fused.mean(dim=1)  # shape: (batch_size, embed_dim)
+        return fused_rep
