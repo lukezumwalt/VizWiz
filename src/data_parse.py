@@ -9,9 +9,11 @@ Lukas Zumwalt
 '''
 
 import json
+from collections import Counter
 from skimage import io
 import matplotlib.pyplot as plt
-# import numpy as np
+from torchvision import transforms
+from transformers import BertTokenizer
 
 # Directory for all images
 IMG_DIR = '../data/images/'
@@ -37,9 +39,9 @@ class DataStruct():
     def __init__(self,
                  images,
                  annotations,
-                 subset=0,
                  txform=None,
                  tokenizer=None,
+                 subset=0,
                  token_max_len=32):
 
         self.image_path = images
@@ -54,14 +56,25 @@ class DataStruct():
         if subset != 0:
             self.subset = self.annotations[:subset]
 
+        self.chosen_answers = []
+        for sample in self.annotations:
+            answers = [entry['answer'] for entry in sample ['answers']]
+            answer_counts = Counter(answers)
+            top_answer,_ = answer_counts.most_common(1)[0]
+            self.chosen_answers.append(top_answer)
+        answer_counts = Counter(self.chosen_answers)
+        self.top_answers = answer_counts.most_common(100)
+        print(self.top_answers)
+
     def __len__(self):
         return len(self.image_path)
 
     def __getitem__(self,idx):
-        image = self.image_path[idx]
-        annotation = self.annotation_path[idx]
+        annotation = self.annotations[idx]
+        image_name = annotation['image']
         question = annotation['question']
         labels = annotation['answers']
+        image = self.image_path[idx] + image_name
 
         if self.txform:
             image = self.txform(image)
@@ -81,8 +94,7 @@ class DataStruct():
             input_ids = None
             attention_mask = None
 
-        # Tuple return
-        return image, labels, input_ids, attention_mask
+        return image_name, question, labels, input_ids, attention_mask
 
     def show(self, idx, rich=False):
         '''
@@ -123,7 +135,7 @@ class DataStruct():
 
 if __name__ == '__main__':
 
-    # Train
+    # Training
     with open(TRAIN_ANNOTATION_PATH, 'r', encoding='utf-8') as f:
         train_data = json.load(f)
 
@@ -131,13 +143,44 @@ if __name__ == '__main__':
     with open(VAL_ANNOTATION_PATH, 'r', encoding='utf-8') as f:
         val_data = json.load(f)
 
-    # Test
+    # Testing
     with open(TEST_ANNOTATION_PATH, 'r', encoding='utf-8') as f:
         test_data = json.load(f)
 
+    # Size reporting
+    print('--------------------------------')
     print('Train set size:', len(train_data))
     print('Validation set size:', len(val_data))
     print('Test set size:', len(test_data))
 
-    training_data = DataStruct(TRAIN_IMG_PATH, TRAIN_ANNOTATION_PATH, None)
-    training_data.show(1,True)
+    #################################
+    # Struct Handling               #
+    #################################
+    
+    # Pre-Processing Objects
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+    ])
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+    # Declare a training data struct
+    training_data = DataStruct(TRAIN_IMG_PATH, TRAIN_ANNOTATION_PATH, transform, tokenizer)
+
+    # Visualize top training answers
+    bar_labels, bar_counts = zip(*training_data.top_answers)
+
+    # Create a bar chart
+    plt.figure(figsize=(20,10))  # Increase figure size for better readability
+    plt.bar(bar_labels, bar_counts)
+    plt.xlabel('Labels')
+    plt.ylabel('Counts')
+    plt.title('Bar Chart of Labels and Counts')
+    plt.xticks(rotation=90)  # Rotate x labels for readability
+    plt.tight_layout()       # Adjust layout to ensure everything fits
+    plt.show()
+
+    # Depict an indexed image
+    training_data.show(10,True)
+
+    # print(training_data[5])
