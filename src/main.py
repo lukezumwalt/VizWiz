@@ -1,15 +1,30 @@
+'''
+main.py
+
+A compilation of classes, functions, and scripts
+to train a multi-modal VQA model seeking to 
+train and test the 2018 VizWiz data challenge.
+
+Two challenges are posed, and the model is designed
+to fuse features and learn to answer both challenges.
+
+Credit for Inspiration:
+-Everley Tseng
+-Timur Tripp
+
+3/21/2025
+Lukas Zumwalt
+'''
 #!/usr/bin/env python3
 
 import os
 import json
 import pickle
 from collections import Counter
-import numpy as np
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
@@ -211,7 +226,7 @@ class DataStruct(Dataset):
         plt.show()
 
 ############################################################
-# 2. Example Model for Challenge 1 & 2
+# 2. Model for Challenge 1 & 2
 ############################################################
 class SimpleVQAModel(nn.Module):
     """
@@ -241,7 +256,10 @@ class SimpleVQAModel(nn.Module):
 
         # Simple CNN for images
         self.cnn = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=5, stride=2),
+            nn.Conv2d(3, 16, kernel_size=5, stride=2),
+            nn.LeakyReLU(),
+            nn.AdaptiveAvgPool2d((7,7)),
+            nn.Conv2d(16, 32, kernel_size=5, stride=2),
             nn.LeakyReLU(),
             nn.AdaptiveAvgPool2d((7,7)),
             nn.Flatten(),
@@ -509,7 +527,7 @@ def main():
 
     # Basic transforms
     transform = transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize((128, 128)),
         transforms.ToTensor()
     ])
     # BERT tokenizer
@@ -522,7 +540,7 @@ def main():
         annotation_path=train_annotation_path,
         txform=transform,
         tokenizer=tokenizer,
-        subset=500,        # load 1000 samples for demonstration
+        subset=2000,
         token_max_len=24,
         top_n=100,
         build_top_answers=True
@@ -547,7 +565,7 @@ def main():
         annotation_path=test_annotation_path,
         txform=transform,
         tokenizer=tokenizer,
-        subset=100,         # for demonstration
+        subset=500,
         token_max_len=24,
         top_n=100,
         build_top_answers=False
@@ -576,7 +594,7 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
     # Training loop
-    epochs = 5
+    epochs = 10
     for epoch in range(1, epochs+1):
         bin_loss, ans_loss = train_one_epoch(
             model, train_loader, optimizer, device, ce_loss, bce_loss
